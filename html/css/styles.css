@@ -187,6 +187,23 @@ body {
     cursor: default;
 }
 
+.error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+#error-full,
+#error-common {
+    text-align: center;
+    font-size: 16px;
+    color: red;
+}
+
 /* common elements ends */
 
 /* popup starts */

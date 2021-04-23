@@ -2,6 +2,8 @@ import Utils from "./utils.js"
 
 const GROTHS_IN_BEAM = 100000000;
 const CONTRACT_ID = "8cef85a6ed4f2c3ecbbcd0b5b2cf0fd60c3fd863015f38bf725582f26183308c";
+const REJECTED_CALL_ID = -32021;
+const TIMEOUT = 3000;
 
 class Faucet {
     constructor() {
@@ -10,21 +12,27 @@ class Faucet {
             inTransaction: false,
             locked_demoX: 0,
             locked_beams: 0,
-            stake: 0,
-            contractBytes: null
+            stake: 0
         }
     }
 
     setError = (errmsg) => {
-        Utils.hide('faucet')
-        Utils.setText('error', errmsg)
+        let errorElementId = "error-common";
+        if (document.getElementById('vault').classList.contains('hidden')) {
+            errorElementId = "error-full";
+            Utils.show('error-full-container');
+        } else {
+            Utils.show('error-common');
+        }
+
+        Utils.setText(errorElementId, errmsg)
         if (this.timeout) {
-            clearTimeout(this.timeout)   
+            clearTimeout(this.timeout);   
         }
         this.timeout = setTimeout(() => {
-            Utils.setText('error', "")
+            Utils.setText(errorElementId, errmsg)
             this.start();
-        }, 3000);
+        }, TIMEOUT)
     }
 
     start = () => {
@@ -34,12 +42,10 @@ class Faucet {
                 let errMsg = [errTemplate, err].join(" ");
                 return this.setError(errMsg);
             }
-
-            this.pluginData.contractBytes = bytes;
     
             Utils.callApi("view_params", "invoke_contract", {
                 contract: bytes,
-                create_tx:false,
+                create_tx: false,
                 args: "role=manager,action=view_params,cid=" + CONTRACT_ID
             })
         })
@@ -47,9 +53,8 @@ class Faucet {
 
     loadStake = () => {
         Utils.callApi("view_stake", "invoke_contract", {
-            contract: this.pluginData.contractBytes,
-            create_tx:false,
-            args: "role=manager,action=view_stake,cid="
+            create_tx: false,
+            args: "role=manager,action=view_stake,cid=" + CONTRACT_ID
         })
     }
     
@@ -59,8 +64,7 @@ class Faucet {
         }
         this.timeout = setTimeout(() => {
             Utils.callApi("view_params", "invoke_contract", {
-                contract: this.pluginData.contractBytes,
-                create_tx:false,
+                create_tx: false,
                 args: "role=manager,action=view_params,cid=" + CONTRACT_ID
             })
         }, now ? 0 : 3000)
@@ -84,6 +88,8 @@ class Faucet {
         Utils.setText('deposited-amount', this.pluginData.stake / GROTHS_IN_BEAM);
         Utils.setText('total-beam-amount', this.pluginData.locked_beams / GROTHS_IN_BEAM);
         Utils.setText('demox-amount', this.pluginData.locked_demoX / GROTHS_IN_BEAM);
+        Utils.hide('error-full-container');
+        Utils.hide('error-common');
         this.refresh(false);
     }
 
@@ -91,13 +97,20 @@ class Faucet {
         try {
             const apiAnswer = JSON.parse(json);
             if (apiAnswer.error) {
+                if (apiAnswer.error.code == REJECTED_CALL_ID) {
+                    return;
+                }
+                
+                this.setError(apiAnswer.error);
                 throw JSON.stringify(apiAnswer.error)
             }
     
             const apiCallId = apiAnswer.id;
             const apiResult = apiAnswer.result;
             if (!apiResult) {
-                throw "Failed to call wallet API"
+                errorMessage = "Failed to call wallet API";
+                this.setError(errorMessage);
+                throw errorMessage;
             }
 
             if (apiCallId == "view_params") {
@@ -133,7 +146,8 @@ class Faucet {
 
 Utils.onLoad(async (beamAPI) => {
     let faucet = new Faucet();
-    Utils.getById('error').style.color = beamAPI.style.validator_error;
+    Utils.getById('error-full-container').style.color = beamAPI.style.validator_error;
+    Utils.getById('error-common').style.color = beamAPI.style.validator_error;
     beamAPI.api.callWalletApiResult.connect(faucet.onApiResult);
     faucet.start();
 
