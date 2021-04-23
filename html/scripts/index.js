@@ -101,20 +101,21 @@ class Faucet {
                     return;
                 }
                 
-                this.setError(apiAnswer.error);
                 throw JSON.stringify(apiAnswer.error)
             }
     
             const apiCallId = apiAnswer.id;
             const apiResult = apiAnswer.result;
             if (!apiResult) {
-                errorMessage = "Failed to call wallet API";
-                this.setError(errorMessage);
-                throw errorMessage;
+                throw "Failed to call wallet API";
             }
 
             if (apiCallId == "view_params") {
                 let shaderOut = this.parseShaderResult(apiResult);
+                if (shaderOut.params['locked_demoX'] === undefined 
+                        || shaderOut.params['locked_beams'] === undefined) {
+                    throw "Failed to load params";
+                }
                 this.pluginData.locked_demoX = shaderOut.params['locked_demoX'];
                 this.pluginData.locked_beams = shaderOut.params['locked_beams'];
                 this.loadStake();
@@ -122,11 +123,18 @@ class Faucet {
 
             if (apiCallId == "view_stake") {
                 let shaderOut = this.parseShaderResult(apiResult);
+                if (shaderOut['stake'] === undefined) {
+                    throw "Failed to load stake value";
+                }
                 this.pluginData.stake = shaderOut['stake'];
                 this.showStaking();
             }
     
             if (apiCallId == "lock") {
+                if (apiResult.raw_data === undefined) {
+                    throw "Failed to load raw data";
+                }
+
                 Utils.callApi("process_invoke_data", "process_invoke_data", {
                     data: apiResult.raw_data
                 });
@@ -136,9 +144,7 @@ class Faucet {
             if (apiCallId == "process_invoke_data") {
                 return this.refresh(true);
             }
-        }
-        catch(err) 
-        {
+        } catch(err) {
             return this.setError(err.toString())
         }
     }
