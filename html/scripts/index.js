@@ -1,7 +1,7 @@
 import Utils from "./utils.js"
 
 const GROTHS_IN_BEAM = 100000000;
-const CONTRACT_ID = "";
+const CONTRACT_ID = "8cef85a6ed4f2c3ecbbcd0b5b2cf0fd60c3fd863015f38bf725582f26183308c";
 
 class Faucet {
     constructor() {
@@ -114,7 +114,14 @@ class Faucet {
             }
     
             if (apiCallId == "lock") {
+                Utils.callApi("process_invoke_data", "process_invoke_data", {
+                    data: apiResult.raw_data
+                });
                 return this.refresh(true)
+            } 
+            
+            if (apiCallId == "process_invoke_data") {
+                return this.refresh(true);
             }
         }
         catch(err) 
@@ -168,6 +175,7 @@ Utils.onLoad(async (beamAPI) => {
         const bigValue = new Big(Utils.getById('deposit-input').value);
         const value = bigValue.times(GROTHS_IN_BEAM);
         Utils.callApi("lock", "invoke_contract", {
+            create_tx: false,
             args: `role=manager,action=lock,amount=${parseInt(value)},cid=${CONTRACT_ID}`
         });
         Utils.hide('deposit-popup');
