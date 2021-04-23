@@ -3,22 +3,24 @@ import Utils from "./utils.js"
 const GROTHS_IN_BEAM = 100000000;
 const CONTRACT_ID = "8cef85a6ed4f2c3ecbbcd0b5b2cf0fd60c3fd863015f38bf725582f26183308c";
 const REJECTED_CALL_ID = -32021;
+const IN_PROGRESS_ID = 5;
 const TIMEOUT = 3000;
 
-class Faucet {
+class Staking {
     constructor() {
         this.timeout = undefined;
         this.pluginData = {
             inTransaction: false,
             locked_demoX: 0,
             locked_beams: 0,
-            stake: 0
+            stake: 0,
+            inProgress: false
         }
     }
 
     setError = (errmsg) => {
         let errorElementId = "error-common";
-        if (document.getElementById('vault').classList.contains('hidden')) {
+        if (document.getElementById('staking').classList.contains('hidden')) {
             errorElementId = "error-full";
             Utils.show('error-full-container');
         } else {
@@ -84,12 +86,13 @@ class Faucet {
     }
 
     showStaking = () => {
-        Utils.show('faucet');
+        Utils.show('staking');
         Utils.setText('deposited-amount', this.pluginData.stake / GROTHS_IN_BEAM);
         Utils.setText('total-beam-amount', this.pluginData.locked_beams / GROTHS_IN_BEAM);
         Utils.setText('demox-amount', this.pluginData.locked_demoX / GROTHS_IN_BEAM);
         Utils.hide('error-full-container');
         Utils.hide('error-common');
+        this.pluginData.inProgress ? Utils.show('intx') : Utils.hide('intx');
         this.refresh(false);
     }
 
@@ -127,7 +130,37 @@ class Faucet {
                     throw "Failed to load stake value";
                 }
                 this.pluginData.stake = shaderOut['stake'];
-                this.showStaking();
+                Utils.callApi("tx-list", "tx_list", {});
+            }
+
+            if (apiCallId == "tx-list") {
+                if (!Array.isArray(apiResult)) {
+                    throw "Failed to get transactions list";
+                }
+
+                for (let element of apiResult) {
+                    if (element["tx_type_string"] == "contract") {
+                        const ivdata = element["invoke_data"];
+                        let isProgressDetected = false;
+                        for (let data of ivdata) {
+                            if (data["contract_id"] == CONTRACT_ID) {
+                                const status = element["status"]
+                                if (status === IN_PROGRESS_ID) {
+                                    isProgressDetected = true;
+                                    break;
+                                }
+                            }
+                        };
+
+                        if (isProgressDetected) {
+                            this.pluginData.inProgress = true;
+                            break;
+                        } else {
+                            this.pluginData.inProgress = false;
+                        }
+                    }
+                };
+                return this.showStaking();
             }
     
             if (apiCallId == "lock") {
@@ -151,11 +184,11 @@ class Faucet {
 }
 
 Utils.onLoad(async (beamAPI) => {
-    let faucet = new Faucet();
+    let staking = new Staking();
     Utils.getById('error-full-container').style.color = beamAPI.style.validator_error;
     Utils.getById('error-common').style.color = beamAPI.style.validator_error;
-    beamAPI.api.callWalletApiResult.connect(faucet.onApiResult);
-    faucet.start();
+    beamAPI.api.callWalletApiResult.connect(staking.onApiResult);
+    staking.start();
 
     Utils.getById('deposit').addEventListener('click', (ev) => {
         Utils.show('deposit-popup');
