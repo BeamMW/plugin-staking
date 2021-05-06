@@ -1,7 +1,7 @@
 import Utils from "./utils.js"
 
 const GROTHS_IN_BEAM = 100000000;
-const CONTRACT_ID = "8cef85a6ed4f2c3ecbbcd0b5b2cf0fd60c3fd863015f38bf725582f26183308c";
+const CONTRACT_ID = "468b2740ef777bbc02413ed5aff7525357bbf1e020e66f0a17551a9ea4f88808";
 const REJECTED_CALL_ID = -32021;
 const IN_PROGRESS_ID = 5;
 const TIMEOUT = 3000;
